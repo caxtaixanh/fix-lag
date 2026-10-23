@@ -1,0 +1,49 @@
+name: Build Bismuth Android
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Extract source ZIP
+        id: source
+        shell: bash
+        run: |
+          ZIP=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
+
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: No source ZIP found in repository root"
+            exit 1
+          fi
+
+          mkdir -p source
+          unzip -q "$ZIP" -d source
+
+          MOD_JSON=$(find source -type f -name mod.json -print -quit)
+
+          if [ -z "$MOD_JSON" ]; then
+            echo "ERROR: mod.json not found inside ZIP"
+            exit 1
+          fi
+
+          echo "path=$(dirname "$MOD_JSON")" >> "$GITHUB_OUTPUT"
+
+      - name: Build Android ARM64
+        id: build
+        uses: geode-sdk/build-geode-mod@main
+        with:
+          target: Android64
+          path: ${{ steps.source.outputs.path }}
+
+      - name: Upload GEODE file
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bismuth-Android-ARM64
+          path: ${{ steps.build.outputs.build-output }}/*.geode
+          if-no-files-found: error
